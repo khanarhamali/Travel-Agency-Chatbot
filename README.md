@@ -16,23 +16,34 @@ This repository contains a Streamlit-based Travel Assistant Chatbot. The chatbot
 
 ## Installation
 
-1. Clone the repository:
+Clone the repository:
 
 ```bash
 git clone https://github.com/khanarhamali/Travel-Agency-Chatbot.git
+```
+```bash
 cd Travel-Agency-Chatbot
 ```
 ## Create a virtual environment and activate it:
-
+```bash
 python -m venv venv
+```
 # Windows
+
+```bash
 venv\Scripts\activate
+```
 # macOS/Linux
+
+```bash
 source venv/bin/activate
+```
 
 ## Install required packages:
 
+```bash
 pip install -r requirements.txt
+```
 
 ## Create a .env file at the project root with your Hugging Face token:
 
@@ -40,7 +51,9 @@ HUGGINGFACEHUB_ACCESS_TOKEN=your_token_here
 
 ## Start the Streamlit app:
 
+```bash
 streamlit run app.py
+```
 
 ## Project Structure
 
