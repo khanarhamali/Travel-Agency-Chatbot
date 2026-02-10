@@ -1,10 +1,10 @@
+streamlit
 langchain
 langchain-community
 langchain-huggingface
-transformers
+huggingface-hub
 sentence-transformers
 faiss-cpu
-huggingface_hub
+python-dotenv
+pandas
 pypdf
-streamlit
-pydantic

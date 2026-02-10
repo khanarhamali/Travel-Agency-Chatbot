@@ -1,6 +1,8 @@
 import os
 import re
 from pathlib import Path
+from typing import List
+
 from dotenv import load_dotenv
 from huggingface_hub import login
 
@@ -19,9 +21,9 @@ from ChatModels.prompt import get_prompt
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ==========================
-# Predefined Questions (ONLY)
+# Predefined Questions (for quick selection)
 # ==========================
-ALLOWED_QUESTIONS = [
+ALLOWED_QUESTIONS: List[str] = [
     "How can I book a tour?",
     "What tour packages do you offer?",
     "What is included in a tour package?",
@@ -35,24 +37,27 @@ ALLOWED_QUESTIONS = [
 ]
 
 # ==========================
-# Load ENV
+# Load Environment Variables
 # ==========================
-env_path = BASE_DIR / ".env"
-load_dotenv(dotenv_path=env_path)
+def load_env():
+    env_path = BASE_DIR / ".env"
+    load_dotenv(dotenv_path=env_path)
+    token = os.getenv("HUGGINGFACEHUB_ACCESS_TOKEN")
+    if token:
+        login(token=token)
+    return token
 
-HF_TOKEN = os.getenv("HUGGINGFACEHUB_ACCESS_TOKEN")
-if HF_TOKEN:
-    login(token=HF_TOKEN)
+HF_TOKEN = load_env()
 
 # ==========================
 # Utility Functions
 # ==========================
-def format_docs(docs):
+def format_docs(docs) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
-def clean_text(text: str) -> str:
+def clean_output(text: str) -> str:
     """
-    Clean and format model output into bullet points.
+    Clean and format LLM output into bullet points.
     """
     text = re.sub(r"(Answer:|Context:|Question:)", "", text, flags=re.IGNORECASE)
 
@@ -63,60 +68,54 @@ def clean_text(text: str) -> str:
 
     for line in lines:
         line = line.strip()
-
-        if not line or line.endswith("?"):
+        if not line or len(line) < 4:
             continue
-
-        if len(line) < 4:
-            continue
-
-        if line.lower() not in seen:
-            seen.add(line.lower())
+        key = line.lower()
+        if key not in seen:
+            seen.add(key)
             bullets.append(f"• {line}")
 
-    if not bullets:
-        return "• Information not found in the document."
-
-    return "\n".join(bullets)
+    return "\n".join(bullets) if bullets else "• Information not found in the document."
 
 # ==========================
-# Chat Model Class
+# Travel Chatbot Model
 # ==========================
 class TravelChatModel:
-    def __init__(self, pdf_name="travel_agency_chatbot_document.pdf"):
+    """
+    RAG-based Travel Chatbot with both predefined and dynamic question support.
+    """
 
+    def __init__(self, pdf_name: str = "travel_agency_chatbot_document.pdf"):
         print("🚀 Initializing Travel Chatbot...")
 
-        # ✅ Lightweight & stable model
+        # -------- LLM Setup --------
         self.llm = HuggingFacePipeline.from_model_id(
             model_id="google/flan-t5-small",
             task="text2text-generation",
             pipeline_kwargs={
                 "max_new_tokens": 200,
+                "temperature": 0.3,
             },
         )
 
-        # ==========================
-        # PDF Path
-        # ==========================
+        # -------- PDF Loading --------
         pdf_path = BASE_DIR / pdf_name
         if not pdf_path.exists():
             raise FileNotFoundError(f"❌ PDF file not found: {pdf_path}")
 
-        print(f"📄 PDF loaded: {pdf_path}")
+        print(f"📄 Loaded PDF: {pdf_path.name}")
 
-        # Load documents
         documents = load_documents(str(pdf_path))
         chunks = split_documents(documents)
 
-        # Vectorstore + Retriever
+        # -------- Vectorstore & Retriever --------
         vectorstore = create_vectorstore(chunks)
         retriever = create_retriever(vectorstore)
 
-        # Prompt
+        # -------- Prompt --------
         prompt = get_prompt()
 
-        # RAG Chain
+        # -------- RAG Chain --------
         self.chain = (
             RunnableParallel(
                 {
@@ -128,16 +127,29 @@ class TravelChatModel:
             | self.llm
         )
 
-        print("✅ Chatbot Ready (Predefined Questions Mode)")
+        print("✅ Travel Chatbot Ready (Dynamic Mode Enabled)")
 
     # ==========================
-    # Ask Function (Restricted)
+    # Main Ask Function
     # ==========================
     def ask(self, question: str) -> str:
+        """
+        Answer both predefined and dynamic questions using RAG.
+        """
+        if not question.strip():
+            return "• Please ask a valid question."
 
-        # 🔒 Allow only predefined questions
-        if question not in ALLOWED_QUESTIONS:
-            return "• Please select a question from the available options."
+        try:
+            response = self.chain.invoke(question)
+            return clean_output(response)
+        except Exception as e:
+            return f"• Sorry, something went wrong: {str(e)}"
 
-        response = self.chain.invoke(question)
-        return clean_text(response)
+    # ==========================
+    # Helper Method
+    # ==========================
+    def get_allowed_questions(self) -> List[str]:
+        """
+        Return predefined quick questions.
+        """
+        return ALLOWED_QUESTIONS
