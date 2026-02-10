@@ -70,3 +70,9 @@ streamlit run app.py
 ├── requirements.txt      # Python dependencies
 ├── .gitignore            # Files to exclude from Git
 └── .streamlit/config.toml # Streamlit configuration
+
+## ChatModel URL
+
+```bash
+https://travel-agency-chatbot-gqc4jpdxplcfxgawjjbsad.streamlit.app/
+```
